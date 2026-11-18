@@ -28,7 +28,7 @@ var SHADES = ["red", "maroon", "ink", "lime"];
 
 /* ================= state ================= */
 
-function fresh() { return { v: 1, tracks: [], prog: {}, grades: {}, log: {}, hidden: [], theme: "", at: 0 }; }
+function fresh() { return { v: 1, tracks: [], prog: {}, grades: {}, log: {}, hidden: [], subjects: [], focus: "", theme: "", at: 0 }; }
 var S = fresh();
 
 function load() {
@@ -78,10 +78,92 @@ function toast(msg, bad) {
 
 function allTracks() {
   var seed = (window.SLA_SEED || []).filter(function (t) { return S.hidden.indexOf(t.id) < 0; });
-  return seed.concat(S.tracks || []);
+  return seed.concat((S.tracks || []).map(hydrate));
 }
 function getTrack(id) { var a = allTracks(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
 function isMine(id) { return (S.tracks || []).some(function (t) { return t.id === id; }); }
+
+/* ================= subjects ================= */
+
+function allSubjects() {
+  var seen = {}, out = [];
+  (window.SLA_SUBJECTS || []).concat(S.subjects || []).forEach(function (x) {
+    if (x && x.id && !seen[x.id]) { seen[x.id] = 1; out.push(x); }
+  });
+  return out;
+}
+function subjectById(id) { var a = allSubjects(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+function tracksIn(sid) { return allTracks().filter(function (t) { return (t.subjects || []).indexOf(sid) >= 0; }); }
+function focusTracks() { return S.focus && subjectById(S.focus) ? tracksIn(S.focus) : allTracks(); }
+function seedFor(id) { var a = window.SLA_SEED || []; for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+/* A seed track you have added to is stored as your own copy; keep feeding it the seed's links and subjects. */
+function hydrate(t) {
+  var src = seedFor(t.id); if (!src) return t;
+  if (!t.subjects) t.subjects = (src.subjects || []).slice();
+  (t.lessons || []).forEach(function (l) {
+    var sl = (src.lessons || []).filter(function (x) { return x.id === l.id; })[0]; if (!sl) return;
+    if (!l.links && sl.links) l.links = sl.links;
+    (l.steps || []).forEach(function (st, i) {
+      var ss = (sl.steps || [])[i];
+      if (ss && ss.title === st.title && !st.links && ss.links) st.links = ss.links;
+    });
+  });
+  return t;
+}
+function subjectTags(t) {
+  var tags = (t.subjects || []).map(subjectById).filter(Boolean);
+  if (!tags.length) return "";
+  return '<div class="stags">' + tags.map(function (x) {
+    return '<a class="stag tone-' + esc(x.tone || "ink") + '" href="#/s/' + esc(x.id) + '">' + esc(x.name) + '</a>';
+  }).join("") + '</div>';
+}
+function chipsRow() {
+  var subs = allSubjects().filter(function (x) { return tracksIn(x.id).length; });
+  if (!subs.length) return "";
+  var h = ['<div class="chips" aria-label="Focus on a subject"><button type="button" class="chipf' + (!S.focus ? " on" : "") + '" data-focus="" aria-pressed="' + (!S.focus) + '">All</button>'];
+  subs.forEach(function (x) {
+    var on = S.focus === x.id;
+    h.push('<button type="button" class="chipf tone-' + esc(x.tone || "ink") + (on ? " on" : "") + '" data-focus="' + esc(x.id) + '" aria-pressed="' + on + '">' +
+      esc(x.name) + '<small>' + tracksIn(x.id).length + '</small></button>');
+  });
+  h.push('</div>');
+  return h.join("");
+}
+
+/* ================= reading links ================= */
+
+function lessonLinks(l) {
+  var out = [], seen = {};
+  function add(x, where, step) {
+    if (!x || !x.url || seen[x.url]) return;
+    seen[x.url] = 1;
+    out.push({ label: x.label || x.url, url: x.url, note: x.note || "", where: where, step: step });
+  }
+  (l.links || []).forEach(function (x) { add(x, "For this lesson", -1); });
+  if (l.link) add({ label: l.linkLabel || l.link, url: l.link }, "For this lesson", -1);
+  (l.steps || []).forEach(function (st, i) { (st.links || []).forEach(function (x) { add(x, "Step " + (i + 1) + " · " + st.title, i); }); });
+  return out;
+}
+function host(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } }
+function linkBtn(x) {
+  return '<a class="linkbtn" href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer">' +
+    '<span class="lb-tx"><span class="lb-t">' + esc(x.label) + '</span><span class="lb-m">' + esc(x.note ? x.note + " · " + host(x.url) : host(x.url)) + '</span></span>' +
+    '<i aria-hidden="true">↗</i></a>';
+}
+function readingSheet(links, si) {
+  if (!links.length) return "";
+  var here = links.filter(function (x) { return x.step === si; });
+  var rest = links.filter(function (x) { return x.step !== si; });
+  var groups = {}, order = [];
+  rest.forEach(function (x) { if (!groups[x.where]) { groups[x.where] = []; order.push(x.where); } groups[x.where].push(x); });
+  return '<div class="sheet" id="sheet" hidden><div class="sheet-back" data-close></div>' +
+    '<div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-t"><div class="sheet-grab" aria-hidden="true"></div>' +
+    '<div class="sheet-head"><h2 id="sheet-t">READING</h2><button type="button" class="sheet-x" data-close aria-label="Close reading">×</button></div>' +
+    '<p class="fine" style="margin-top:0">Opens in a new tab. Your place in the lesson stays put.</p>' +
+    (here.length ? '<h3 class="sheet-g">This step</h3><div class="links">' + here.map(linkBtn).join("") + '</div>' : '') +
+    order.map(function (g) { return '<h3 class="sheet-g">' + esc(g) + '</h3><div class="links">' + groups[g].map(linkBtn).join("") + '</div>'; }).join("") +
+    '</div></div>';
+}
 function lp(tid, lid) {
   S.prog[tid] = S.prog[tid] || {};
   S.prog[tid][lid] = S.prog[tid][lid] || { step: 0, ans: {}, note: "", at: 0 };
@@ -187,6 +269,10 @@ function merge(a, b) {
   out.tracks = Object.keys(byId).map(function (k) { return byId[k]; });
 
   out.hidden = (a.hidden || []).concat(b.hidden || []).filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+  var subs = {};
+  (a.subjects || []).concat(b.subjects || []).forEach(function (x) { if (x && x.id) subs[x.id] = x; });
+  out.subjects = Object.keys(subs).map(function (k) { return subs[k]; });
+  out.focus = a.focus || "";
 
   [a.prog || {}, b.prog || {}].forEach(function (pg) {
     Object.keys(pg).forEach(function (tid) {
@@ -335,7 +421,7 @@ var MARK = '<svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx=
 
 function chrome(route) {
   var c = counts(), L = levelOf(c.xp), top = document.getElementById("topbar");
-  var sub = route[0] === "l" || route[0] === "t";
+  var sub = route[0] === "l" || route[0] === "t" || route[0] === "s";
   top.innerHTML =
     (sub ? '<button class="back" id="backbtn" aria-label="Back"><span aria-hidden="true">←</span> Back</button>'
          : '<a class="brand" href="#/" aria-label="Self Learn Anything home">' + MARK + '<span>SELF LEARN <i>anything</i></span></a>') +
@@ -349,11 +435,11 @@ function chrome(route) {
   var ic = function (d) { return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; };
   var tabs = [
     ["#/", "Learn", ic('<path d="M7 4.5v15l12-7.5z"/>')],
-    ["#/tracks", "Tracks", ic('<path d="M3 7h6l2 2h10v10H3z"/>')],
+    ["#/tracks", "Subjects", ic('<path d="M3 7h6l2 2h10v10H3z"/>')],
     ["#/add", "Add", ic('<path d="M12 5v14M5 12h14"/>')],
     ["#/stats", "You", ic('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>')]
   ];
-  var cur = "#/" + (["tracks", "add", "stats"].indexOf(route[0]) >= 0 ? route[0] : "");
+  var cur = "#/" + (route[0] === "s" ? "tracks" : ["tracks", "add", "stats"].indexOf(route[0]) >= 0 ? route[0] : "");
   document.getElementById("tabbar").innerHTML = tabs.map(function (t) {
     return '<a href="' + t[0] + '"' + (t[0] === cur ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></a>';
   }).join("");
@@ -362,7 +448,7 @@ function chrome(route) {
 /* ================= views ================= */
 
 function nextUpAll() {
-  var tracks = allTracks();
+  var tracks = focusTracks();
   for (var i = 0; i < tracks.length; i++) {
     var n = nextLesson(tracks[i]);
     if (n) return { track: tracks[i], lesson: n.lesson, i: n.i };
@@ -374,7 +460,7 @@ function nextUpAll() {
 }
 
 function viewLearn() {
-  var c = counts(), tracks = allTracks(), up = nextUpAll(), h = [];
+  var c = counts(), tracks = focusTracks(), up = nextUpAll(), h = [];
   var started = c.answered > 0;
 
   var head = !started ? 'LEARN THE THING YOU’RE <em>actually</em> DOING'
@@ -383,6 +469,7 @@ function viewLearn() {
   h.push('<section class="hero rv"><span class="eyebrow">' + (c.streak ? "Day " + c.streak + " running" : "Fifteen minutes is enough") + '</span>' +
     '<h1 class="mega">' + head + '</h1>' +
     '<span class="sticker tilt-r">' + (c.lessons ? plural(c.lessons, "lesson") + " down" : started ? "In progress" : "No dates. No falling behind.") + '</span></section>');
+  h.push(chipsRow());
 
   if (up && !up.unwritten) {
     var tc = trackCounts(up.track), lt = qTotal(up.lesson), lr = qRight(up.track.id, up.lesson);
@@ -417,7 +504,7 @@ function viewLearn() {
   h.push('<section class="rv"><div class="sechead"><h2 class="h2">Your <em>week</em></h2><span class="n">' + (S.log[today()] ? "Today is logged" : "Nothing yet today") + '</span></div>' + weekStrip(c) + '</section>');
 
   if (tracks.length) {
-    h.push('<section class="rv"><div class="sechead"><h2 class="h2">Your <em>tracks</em></h2><a class="n link" href="#/tracks">All ' + tracks.length + ' →</a></div>' +
+    h.push('<section class="rv"><div class="sechead"><h2 class="h2">' + (S.focus && subjectById(S.focus) ? esc(subjectById(S.focus).name) + ' <em>tracks</em>' : 'Your <em>tracks</em>') + '</h2><a class="n link" href="#/tracks">All ' + tracks.length + ' →</a></div>' +
       '<div class="fan">' + tracks.map(function (t, i) { return fanCard(t, i); }).join("") + '</div></section>');
   }
   return h.join("");
@@ -446,25 +533,63 @@ function fanCard(t, i) {
     (g ? '<span class="stamp g' + g + '">' + g + '</span>' : '') + '</a>';
 }
 
+function folderCard(t, i) {
+  var tc = trackCounts(t), nx = nextLesson(t), g = S.grades[t.id] || 0;
+  var shade = ["red", "maroon", "ink"][i % 3];
+  return '<a class="folder big shade-' + shade + '" style="--i:' + i + '" href="#/t/' + esc(t.id) + '">' +
+    '<div class="tab"><span>' + String(i + 1).padStart(2, "0") + (t.tag ? " · " + esc(t.tag) : "") + '</span></div>' +
+    '<div class="fbody"><h2 class="ftitle">' + esc(t.title) + '</h2>' +
+    (t.subtitle ? '<p class="fintro">' + esc(t.subtitle) + '</p>' : '') +
+    '<div class="meter"><i style="--w:' + tc.pct + '%"></i></div>' +
+    '<div class="fmeta">' + tc.done + ' of ' + tc.total + ' written lessons' + (tc.road ? ' · ' + tc.road + ' on the road ahead' : '') +
+    (nx ? ' · next: ' + esc(nx.lesson.title) : '') + '</div>' +
+    (g ? '<span class="stamp g' + g + '">' + g + '</span>' : '') +
+    '</div></a>';
+}
+function subjectStats(sid) {
+  var ts = tracksIn(sid), done = 0, total = 0, road = 0;
+  ts.forEach(function (t) { var c = trackCounts(t); done += c.done; total += c.total; road += c.road; });
+  return { tracks: ts.length, done: done, total: total, road: road, pct: total + road ? Math.round(done / (total + road) * 100) : 0 };
+}
+
 function viewTracks() {
   var tracks = allTracks();
   if (!tracks.length) return '<section class="empty rv"><h2 class="mega sm">NO <em>tracks</em></h2><a class="cta" href="#/add"><span>Add one</span><i>→</i></a></section>';
-  var h = ['<section class="hero compact rv"><span class="eyebrow">' + plural(tracks.length, "track") + '</span><h1 class="mega">EVERYTHING YOU’RE <em>learning</em></h1></section>',
-    '<div class="stackfolders">'];
-  tracks.forEach(function (t, i) {
-    var tc = trackCounts(t), nx = nextLesson(t), g = S.grades[t.id] || 0;
-    var shade = ["red", "maroon", "ink"][i % 3];
-    h.push('<a class="folder big shade-' + shade + '" style="--i:' + i + '" href="#/t/' + esc(t.id) + '">' +
-      '<div class="tab"><span>' + String(i + 1).padStart(2, "0") + (t.tag ? " · " + esc(t.tag) : "") + '</span></div>' +
-      '<div class="fbody"><h2 class="ftitle">' + esc(t.title) + '</h2>' +
-      (t.subtitle ? '<p class="fintro">' + esc(t.subtitle) + '</p>' : '') +
-      '<div class="meter"><i style="--w:' + tc.pct + '%"></i></div>' +
-      '<div class="fmeta">' + tc.done + ' of ' + tc.total + ' written lessons' + (tc.road ? ' · ' + tc.road + ' on the road ahead' : '') +
-      (nx ? ' · next: ' + esc(nx.lesson.title) : '') + '</div>' +
-      (g ? '<span class="stamp g' + g + '">' + g + '</span>' : '') +
-      '</div></a>');
+  var subs = allSubjects();
+  var h = ['<section class="hero compact rv"><span class="eyebrow">' + plural(subs.length, "subject") + ' · ' + plural(tracks.length, "track") + '</span><h1 class="mega">WHAT YOU’RE <em>building</em></h1>' +
+    '<p class="lede">Each subject grows as you add tracks to it. Tap one to see everything in it.</p></section>'];
+  h.push('<div class="subgrid rv">');
+  subs.forEach(function (x) {
+    var st = subjectStats(x.id);
+    h.push('<a class="subcard tone-' + esc(x.tone || "ink") + '" href="#/s/' + esc(x.id) + '">' +
+      '<span class="sc-n">' + esc(x.name) + '</span>' +
+      '<span class="sc-m">' + (st.tracks ? plural(st.tracks, "track") + ' · ' + st.done + '/' + (st.total + st.road) + ' lessons' : 'Nothing yet — add a track') + '</span>' +
+      '<span class="sc-bar"><i style="--w:' + st.pct + '%"></i></span></a>');
   });
-  h.push('</div>');
+  h.push('<a class="subcard add" href="#/add"><span class="sc-n">+ Subject</span><span class="sc-m">Something new you’re working on</span></a></div>');
+  var loose = tracks.filter(function (t) { return !(t.subjects || []).some(subjectById); });
+  if (loose.length) {
+    h.push('<section class="rv"><div class="sechead"><h2 class="h2">Start <em>here</em></h2></div><div class="stackfolders">');
+    loose.forEach(function (t, i) { h.push(folderCard(t, i)); });
+    h.push('</div></section>');
+  }
+  return h.join("");
+}
+
+function viewSubject(sid) {
+  var x = subjectById(sid);
+  if (!x) return '<section class="empty"><h2 class="mega sm">NOT <em>found</em></h2><a class="cta" href="#/tracks"><span>All subjects</span><i>→</i></a></section>';
+  var ts = tracksIn(sid), st = subjectStats(sid), h = [];
+  h.push('<section class="hero compact rv"><span class="eyebrow">Subject</span><h1 class="mega">' + esc(x.name).toUpperCase() + '</h1>' +
+    '<div class="bigmeter"><i style="--w:' + st.pct + '%"></i><span>' + st.done + ' / ' + (st.total + st.road) + ' lessons</span></div></section>');
+  if (ts.length) {
+    h.push('<div class="stackfolders">');
+    ts.forEach(function (t, i) { h.push(folderCard(t, i)); });
+    h.push('</div>');
+  } else {
+    h.push('<section class="empty rv"><p>No tracks in ' + esc(x.name) + ' yet.</p></section>');
+  }
+  h.push('<section class="rv"><a class="cta" href="#/add/' + esc(x.id) + '"><span>Add a track to ' + esc(x.name) + '</span><i>→</i></a></section>');
   return h.join("");
 }
 
@@ -475,7 +600,7 @@ function viewTrack(id) {
 
   h.push('<section class="hero compact rv">' + (t.tag ? '<span class="eyebrow">' + esc(t.tag) + '</span>' : '') +
     '<h1 class="mega">' + esc(t.title).toUpperCase() + '</h1>' +
-    (t.subtitle ? '<p class="lede">' + esc(t.subtitle) + '</p>' : '') +
+    (t.subtitle ? '<p class="lede">' + esc(t.subtitle) + '</p>' : '') + subjectTags(t) +
     '<div class="bigmeter"><i style="--w:' + tc.pct + '%"></i><span>' + tc.done + ' / ' + tc.total + ' written</span></div></section>');
 
   if (!tc.total && !tc.road) {
@@ -506,6 +631,14 @@ function viewTrack(id) {
     h.push('</ol>' + (show < road.length ? '<button class="btn ghost" data-road="' + esc(t.id) + '">Show all ' + road.length + '</button>' : '') + '</section>');
   }
 
+  var rl = [], rseen = {};
+  (t.lessons || []).forEach(function (l) { lessonLinks(l).forEach(function (x) { if (!rseen[x.url]) { rseen[x.url] = 1; rl.push(x); } }); });
+  if (rl.length) {
+    h.push('<section class="rv"><div class="sechead"><h2 class="h2">The <em>reading</em></h2><span class="n">' + rl.length + ' sources</span></div>' +
+      '<div class="links">' + rl.slice(0, FX.showRead === t.id ? rl.length : 6).map(linkBtn).join("") + '</div>' +
+      (rl.length > 6 && FX.showRead !== t.id ? '<button class="btn ghost" data-readall="' + esc(t.id) + '">Show all ' + rl.length + '</button>' : '') + '</section>');
+  }
+
   h.push('<section class="rv"><div class="sechead"><h2 class="h2">Your <em>grade</em></h2><span class="n">be honest</span></div>' + gradeRow(t.id, g) +
     '<p class="fine">4 is the only one that counts: you can hold it when someone who does this for a living pushes back.</p></section>');
 
@@ -526,7 +659,7 @@ function viewLesson(tid, lid) {
 
   var p = lp(tid, lid), tot = (ls.steps || []).length, si = Math.min(p.step || 0, tot), h = [], passed = 0;
   (ls.steps || []).forEach(function (s, i) { if (stepDone(tid, ls, i)) passed++; });
-  var dir = FX.dir || 0;
+  var dir = FX.dir || 0, links = lessonLinks(ls);
 
   h.push('<section class="lhead"><span class="eyebrow">' + esc(t.title) + '</span><h1 class="ltitle">' + esc(ls.title) + '</h1></section>');
 
@@ -535,12 +668,13 @@ function viewLesson(tid, lid) {
     h.push('<button type="button" class="seg' + (i === si ? " now" : "") + (stepDone(tid, ls, i) ? " ok" : "") +
       '" data-step="' + i + '" aria-label="Step ' + (i + 1) + ': ' + esc(s.title) + '"><i></i><span>' + (i + 1) + '</span></button>');
   });
-  h.push('<button type="button" class="seg fin' + (si === tot ? " now" : "") + (passed === tot && tot ? " ok" : "") + '" data-step="' + tot + '" aria-label="Recap"><i></i><span>✓</span></button></div>');
+  h.push('<button type="button" class="seg fin' + (si === tot ? " now" : "") + (passed === tot && tot ? " ok" : "") + '" data-step="' + tot + '" aria-label="Recap"><i></i><span>✓</span></button>' +
+    (links.length ? '<button type="button" class="readbtn" id="readbtn" aria-haspopup="dialog" aria-controls="sheet"><span>Read</span><b>' + links.length + '</b></button>' : '') + '</div>');
 
   h.push('<div class="stage' + (dir > 0 ? " from-r" : dir < 0 ? " from-l" : "") + '">');
   if (si === 0 && ls.intro) {
     h.push('<div class="lead"><p>' + esc(ls.intro) + '</p>' +
-      (ls.link ? '<a class="srclink" href="' + esc(ls.link) + '" target="_blank" rel="noopener">Open alongside: ' + esc(ls.linkLabel || ls.link) + ' ↗</a>' : '') + '</div>');
+      (links.filter(function (x) { return x.step === -1; }).length ? '<div class="links">' + links.filter(function (x) { return x.step === -1; }).map(linkBtn).join("") + '</div>' : '') + '</div>');
   }
 
   if (si === tot) {
@@ -563,7 +697,8 @@ function viewLesson(tid, lid) {
     var st = ls.steps[si];
     h.push('<article class="step"><div class="stepno"><span class="sticker">Step ' + (si + 1) + ' of ' + tot + '</span></div>' +
       '<h2 class="steptitle">' + esc(st.title) + '</h2><div class="teach">' + wrapTables(st.teach || "") + '</div>');
-    if (st.look) h.push('<div class="look"><div class="looktab">Now go and look</div><p>' + st.look + '</p></div>');
+    if (st.look || (st.links || []).length) h.push('<div class="look"><div class="looktab">Now go and look</div>' + (st.look ? '<p>' + st.look + '</p>' : '') +
+      ((st.links || []).length ? '<div class="links">' + st.links.map(function (x) { return linkBtn({ label: x.label || x.url, url: x.url, note: x.note || "" }); }).join("") + '</div>' : '') + '</div>');
     (st.qs || []).forEach(function (q, qi) {
       var key = si + "-" + qi, given = p.ans[key], just = FX.ans === tid + "/" + lid + "/" + key;
       h.push('<div class="qz' + (given != null ? (given === q.correct ? " is-right" : " is-wrong") : "") + (just ? " just" : "") + '">' +
@@ -589,12 +724,28 @@ function viewLesson(tid, lid) {
       '<button class="cta" data-step="' + (si + 1) + '"><span>' + (si + 1 === tot ? "Finish" : "Next step") + '</span><i>→</i></button></div></article>');
   }
   h.push('</div>');
+  h.push(readingSheet(links, si));
   return h.join("");
 }
 
-function viewAdd() {
+function trackOptions(tracks) {
+  var subs = allSubjects(), used = {}, out = [];
+  subs.forEach(function (x) {
+    var ts = tracks.filter(function (t) { return !used[t.id] && (t.subjects || [])[0] === x.id; });
+    if (!ts.length) return;
+    out.push('<optgroup label="' + esc(x.name) + '">' + ts.map(function (t) { used[t.id] = 1; return '<option value="' + esc(t.id) + '">' + esc(t.title) + '</option>'; }).join("") + '</optgroup>');
+  });
+  var rest = tracks.filter(function (t) { return !used[t.id]; });
+  if (rest.length) out.push('<optgroup label="Other">' + rest.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title) + '</option>'; }).join("") + '</optgroup>');
+  return out.join("");
+}
+function viewAdd(pre) {
   var tracks = allTracks();
-  var opts = tracks.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title) + '</option>'; }).join("");
+  var opts = trackOptions(tracks);
+  var picks = allSubjects().map(function (x) {
+    var on = pre === x.id;
+    return '<button type="button" class="chipf pick tone-' + esc(x.tone || "ink") + (on ? " on" : "") + '" data-pick="' + esc(x.id) + '" aria-pressed="' + on + '">' + esc(x.name) + '</button>';
+  }).join("");
   return '' +
   '<section class="hero compact rv"><span class="eyebrow">Capture it while it’s fresh</span><h1 class="mega">LOOKED IT UP <em>twice?</em> ADD IT.</h1></section>' +
   '<section class="card form rv"><div class="cardtab">Quick question · 20 seconds</div>' +
@@ -613,7 +764,13 @@ function viewAdd() {
     field("nt", "Title", '<input type="text" id="nt" placeholder="Cloudflare Workers">') +
     field("ns", "What it covers <span class=\"opt-l\">optional</span>", '<input type="text" id="ns" placeholder="Routing, KV, bindings, deploys">') +
     field("ng", "Tag <span class=\"opt-l\">optional</span>", '<input type="text" id="ng" placeholder="Dev">') +
+    '<div class="field"><span class="flabel">Subjects <span class="opt-l">tap any that fit</span></span><div class="chips wrap" id="picks">' + picks + '</div></div>' +
     '<button class="cta block" id="addt"><span>Create track</span><i>→</i></button>' +
+  '</section>' +
+  '<section class="card form rv"><div class="cardtab">New subject</div>' +
+    '<p class="fine" style="margin-top:0">A whole area you are working in, such as Marketing or Finance. Tracks go inside it.</p>' +
+    field("sn", "Name", '<input type="text" id="sn" maxlength="28" placeholder="Marketing">') +
+    '<button class="btn block" id="adds">Add subject</button>' +
   '</section>' +
   '<section class="card form rv"><div class="cardtab">Paste a lesson · JSON</div>' +
     '<p class="fine" style="margin-top:0">A full guided lesson with teach, look and check steps. One lesson or an array. Ask Claude for one in this format.</p>' +
@@ -693,7 +850,8 @@ function render(quiet) {
   if (r[0] === "tracks") html = viewTracks();
   else if (r[0] === "t") html = viewTrack(decodeURIComponent(r[1] || ""));
   else if (r[0] === "l") html = viewLesson(decodeURIComponent(r[1] || ""), decodeURIComponent(r[2] || ""));
-  else if (r[0] === "add") html = viewAdd();
+  else if (r[0] === "add") html = viewAdd(decodeURIComponent(r[1] || ""));
+  else if (r[0] === "s") html = viewSubject(decodeURIComponent(r[1] || ""));
   else if (r[0] === "stats") html = viewStats();
   else html = viewLearn();
   main.innerHTML = html;
@@ -762,6 +920,21 @@ function wire(r) {
     if (S.grades[id] === g) delete S.grades[id]; else S.grades[id] = g;
     save(); var y = window.scrollY; render(true); window.scrollTo(0, y);
   });
+  on("[data-focus]", "click", function (n) {
+    S.focus = n.getAttribute("data-focus") || ""; saveLocal(); render(true);
+  });
+  on("[data-readall]", "click", function (n) { FX.showRead = n.getAttribute("data-readall"); var y = window.scrollY; render(true); window.scrollTo(0, y); });
+  on("[data-pick]", "click", function (n) {
+    var on2 = !n.classList.contains("on"); n.classList.toggle("on", on2); n.setAttribute("aria-pressed", on2);
+  });
+  var sheet = byId("sheet"), rb = byId("readbtn");
+  if (sheet && rb) {
+    var openSheet = function () { sheet.hidden = false; requestAnimationFrame(function () { sheet.classList.add("open"); }); document.body.classList.add("noscroll"); var x = sheet.querySelector(".sheet-x"); if (x) x.focus(); };
+    var closeSheet = function () { sheet.classList.remove("open"); document.body.classList.remove("noscroll"); setTimeout(function () { sheet.hidden = true; }, RM ? 0 : 260); rb.focus(); };
+    rb.addEventListener("click", openSheet);
+    sheet.querySelectorAll("[data-close]").forEach(function (c) { c.addEventListener("click", closeSheet); });
+    sheet.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+  }
   on("[data-road]", "click", function (n) { FX.showRoad = n.getAttribute("data-road"); var y = window.scrollY; render(true); window.scrollTo(0, y); });
   on("[data-copy]", "click", function (n) {
     var txt = n.getAttribute("data-copy");
@@ -792,8 +965,19 @@ function wire(r) {
     var title = byId("nt").value.trim();
     if (!title) { toast("Give it a title", true); return; }
     var id = uid("t");
-    S.tracks.push({ id: id, title: title, subtitle: byId("ns").value.trim(), tag: byId("ng").value.trim(), lessons: [], updatedAt: Date.now() });
+    var subs = [].map.call(document.querySelectorAll("#picks .on"), function (b) { return b.getAttribute("data-pick"); });
+    S.tracks.push({ id: id, title: title, subtitle: byId("ns").value.trim(), tag: byId("ng").value.trim(), subjects: subs, lessons: [], updatedAt: Date.now() });
     save(); toast("Track created"); go("#/t/" + encodeURIComponent(id));
+  });
+  var adds = byId("adds");
+  if (adds) adds.addEventListener("click", function () {
+    var name = byId("sn").value.trim().slice(0, 28);
+    if (!name) { toast("Give it a name", true); return; }
+    var sid = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || uid("s");
+    if (subjectById(sid)) { toast("You already have " + esc(subjectById(sid).name), true); return; }
+    S.subjects = S.subjects || [];
+    S.subjects.push({ id: sid, name: name, tone: ["red", "deep", "maroon", "flame", "ink", "lime", "slate"][S.subjects.length % 7] });
+    save(); toast("Subject added"); go("#/add/" + encodeURIComponent(sid));
   });
   var addj = byId("addj");
   if (addj) addj.addEventListener("click", function () {
@@ -899,15 +1083,25 @@ function addQuestion(tid, q) {
   target.updatedAt = Date.now();
   save();
 }
+function badLinks(ls) {
+  if (ls == null) return "";
+  if (!Array.isArray(ls)) return "links must be an array";
+  for (var k = 0; k < ls.length; k++) {
+    if (!ls[k] || typeof ls[k].url !== "string" || !/^https?:\/\//i.test(ls[k].url)) return "link " + (k + 1) + " needs an http(s) url";
+  }
+  return "";
+}
 function validateLesson(l) {
   if (!l || typeof l !== "object") return "Each lesson must be an object";
   if (!l.title) return "A lesson needs a title";
   if (!Array.isArray(l.steps) || !l.steps.length) return "A lesson needs a steps array";
+  var lb = badLinks(l.links); if (lb) return lb;
   for (var i = 0; i < l.steps.length; i++) {
     var s = l.steps[i];
     if (!s || !s.title) return "Step " + (i + 1) + " needs a title";
     if (!s.teach) return "Step " + (i + 1) + " needs teach text";
     if (s.qs != null && !Array.isArray(s.qs)) return "Step " + (i + 1) + ": qs must be an array";
+    var bad = badLinks(s.links); if (bad) return "Step " + (i + 1) + ": " + bad;
     var qs = s.qs || [];
     for (var j = 0; j < qs.length; j++) {
       var q = qs[j];

@@ -1,8 +1,8 @@
 /* Self Learn Anything — offline shell.
    HTML is network-first so a deploy is picked up straight away.
    Static assets are cache-first with a versioned cache. Bump VERSION on release. */
-var VERSION = "sla-2";
-var SHELL = ["./", "./index.html", "./app.css", "./app.js", "./tracks.js", "./icon.svg", "./manifest.webmanifest"];
+var VERSION = "sla-3";
+var SHELL = ["./", "./index.html", "./app.css", "./app.js", "./tracks.js", "./tracks/cloudflare.js", "./tracks/github.js", "./tracks/ai.js", "./tracks/it.js", "./tracks/compliance.js", "./tracks/property.js", "./icon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));

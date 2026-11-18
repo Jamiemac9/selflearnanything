@@ -2,10 +2,21 @@
    A track is a subject. A lesson is one sitting. A step is teach -> look -> check.
    Nothing here is tied to a calendar date: lessons are sequential and never expire. */
 
+window.SLA_SUBJECTS = [
+  { id: "housing",    name: "Supported Housing", tone: "red" },
+  { id: "compliance", name: "Compliance",        tone: "deep" },
+  { id: "property",   name: "Property",          tone: "maroon" },
+  { id: "cloudflare", name: "Cloudflare",        tone: "flame" },
+  { id: "github",     name: "GitHub",            tone: "ink" },
+  { id: "ai",         name: "AI",                tone: "lime" },
+  { id: "it",         name: "IT",                tone: "slate" }
+];
+
 window.SLA_SEED = [
 
 {
   id: "sla-how",
+  subjects: [],
   title: "How to use this",
   subtitle: "The loop, in one lesson",
   tag: "Start here",
@@ -86,6 +97,7 @@ window.SLA_SEED = [
 
 {
   id: "sea-compliance",
+  subjects: ["housing", "compliance"],
   title: "Supported Housing Compliance",
   subtitle: "SHROA 2023, licensing, Housing Benefit, the standards",
   tag: "UK property",
@@ -173,6 +185,7 @@ window.SLA_SEED = [
       steps: [
         {
           title: "Why this Act exists",
+          links: [{"label": "The Act — contents", "url": "https://www.legislation.gov.uk/ukpga/2023/26/contents", "note": "legislation.gov.uk"}],
           teach: "<p>Until 2023 there was <b>no national licensing system for supported housing</b> in England. Anyone could set up as a provider, house vulnerable people, claim enhanced Housing Benefit for it, and nobody licensed them or checked whether the support was real.</p>" +
             "<p>Councils could only reach for tools built for something else: HMO licensing and selective licensing under the Housing Act 2004. Those regulate the <i>building</i>. Neither says anything about the support.</p>" +
             "<p>The <b>Supported Housing (Regulatory Oversight) Act 2023</b> is Parliament's answer. But here is the part that catches people out: the Act does not license anybody. It <b>hands the Secretary of State the power</b> to create a licensing system later, through regulations. That is why nothing has changed for providers yet — and why the draft regulations published in October 2026 matter so much. Regulations are where duties land.</p>",
@@ -189,6 +202,7 @@ window.SLA_SEED = [
         },
         {
           title: "The map",
+          links: [{"label": "The Act — contents", "url": "https://www.legislation.gov.uk/ukpga/2023/26/contents", "note": "14 sections, no schedules"}],
           teach: "<p>The Act is in four groups. You do not need detail yet — you need to know where to <i>look</i>.</p>" +
             "<table><tr><th>Group</th><th>What lives there</th></tr>" +
             "<tr><td>Advice, strategy and standards</td><td><b>s.1</b> advisory panel &middot; <b>s.2</b> councils must assess need and publish a strategy &middot; <b>s.3</b> power to set the national standards</td></tr>" +
@@ -213,6 +227,7 @@ window.SLA_SEED = [
         },
         {
           title: "The phrase that decides who pays",
+          links: [{"label": "Section 4 — licensing regulations", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/4"}, {"label": "Section 13 — borrowed definitions", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/13"}, {"label": "Housing Act 2004, s.263", "url": "https://www.legislation.gov.uk/ukpga/2004/34/section/263", "note": "person having control / managing"}],
           teach: "<p>Read s.4(1). The people it catches are described as a person <b>'having control of, or managing'</b> supported exempt accommodation.</p>" +
             "<p>That sounds vague. It is not — <b>s.13</b> says both expressions take their meaning from <b>section 263 of the Housing Act 2004</b>.</p>" +
             "<p>In broad terms under s.263: a <b>person having control</b> is the person who receives the rack-rent. A <b>person managing</b> is an owner or lessee who receives rents or other payments from the people living there, directly or through an agent.</p>" +
@@ -241,6 +256,7 @@ window.SLA_SEED = [
         },
         {
           title: "What non-compliance costs",
+          links: [{"label": "Section 4 — licensing regulations", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/4"}, {"label": "Housing and Planning Act 2016, Part 2", "url": "https://www.legislation.gov.uk/ukpga/2016/22/part/2", "note": "banning orders"}],
           teach: "<p>Still in s.4. The regulations may plug a licensing offence into <b>two other Acts</b>, and the difference matters.</p>" +
             "<ul><li><b>Housing Act 2004</b> — a licensing offence can be made a <b>financial penalty</b> offence. A council can fine the organisation.</li>" +
             "<li><b>Housing and Planning Act 2016</b>, Chapters 2 and 3 of Part 2 — it can be made a <b>banning order offence</b>. A banning order is made against <b>a person</b>: it bars that individual from letting or managing housing, and their name goes on a national database.</li></ul>" +
@@ -270,6 +286,7 @@ window.SLA_SEED = [
         },
         {
           title: "Why there is a consultation open",
+          links: [{"label": "Section 6 — consultation", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/6"}, {"label": "The consultation on the draft regulations", "url": "https://www.gov.uk/government/consultations/supported-housing-licensing-regime-consultation-on-draft-regulations", "note": "GOV.UK · closes 10 Dec 2026"}],
           teach: "<p><b>s.6</b> says the Secretary of State <b>must</b> consult before making licensing regulations, and names statutory consultees — including the National Housing Federation and the Regulator of Social Housing.</p>" +
             "<p>So the consultation that opened on 15 October 2026 and closes at 23:59 on <b>10 December 2026</b> is not a courtesy exercise. It is the discharge of a statutory duty under s.6.</p>" +
             "<p>That changes what a response is worth. 'We gave some feedback' is forgettable. 'We filed a response to the s.6 consultation on the draft regulations' is a dated, checkable record of being engaged before the regime commenced.</p>",
@@ -320,6 +337,7 @@ window.SLA_SEED = [
         },
         {
           title: "Three terms that sound the same",
+          links: [{"label": "Section 12 — supported exempt accommodation", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/12"}, {"label": "HB Regulations 2006, reg 75H", "url": "https://www.legislation.gov.uk/uksi/2006/213/regulation/75H", "note": "specified accommodation"}, {"label": "HB & CTB (Consequential Provisions) Regs 2006, Sch 3", "url": "https://www.legislation.gov.uk/uksi/2006/217/schedule/3", "note": "exempt accommodation, para 4(10)"}],
           teach: "<p>This is where almost everyone slips, and getting it right marks you out immediately.</p>" +
             "<table><tr><th>Term</th><th>Defined in</th><th>What it does</th></tr>" +
             "<tr><td><b>Supported exempt accommodation</b></td><td>s.12 of the 2023 Act</td><td>The gateway for <b>licensing</b></td></tr>" +
@@ -347,6 +365,7 @@ window.SLA_SEED = [
         },
         {
           title: "How s.12 is built",
+          links: [{"label": "Section 12 — supported exempt accommodation", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/12"}],
           teach: "<p>Read s.12. You are looking for its <b>structure</b>, not memorising words.</p>" +
             "<ul><li><b>Subsection (1)</b> states what the term means by pointing at categories.</li>" +
             "<li><b>Subsection (2)</b> carries the accommodation types.</li>" +
@@ -367,6 +386,7 @@ window.SLA_SEED = [
         },
         {
           title: "Why it is wired to Housing Benefit",
+          links: [{"label": "Section 12", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/12"}, {"label": "HB Regulations 2006, reg 75H", "url": "https://www.legislation.gov.uk/uksi/2006/213/regulation/75H"}],
           teach: "<p>The s.12 definition was written to line up with the Housing Benefit concept of specified accommodation. That alignment is the engine of the whole regime.</p>" +
             "<p>It means licensing bites on <b>exactly the stock whose income comes through enhanced Housing Benefit</b>. Follow the chain:</p>" +
             "<p><b>No licence and no valid exemption → not lawfully operating → residents not eligible for enhanced Housing Benefit → the income that pays for the scheme stops.</b></p>" +
@@ -384,6 +404,7 @@ window.SLA_SEED = [
         },
         {
           title: "Two sections about your own practice",
+          links: [{"label": "Section 10 — sharing information", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/10"}, {"label": "Section 11 — use of information", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/11"}, {"label": "Section 13 — other interpretation", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/13"}, {"label": "Section 14 — commencement and extent", "url": "https://www.legislation.gov.uk/ukpga/2023/26/section/14"}, {"label": "Data Protection Act 2018, s.3", "url": "https://www.legislation.gov.uk/ukpga/2018/12/section/3"}],
           teach: "<p><b>s.10</b> covers sharing information about supported exempt accommodation. <b>s.11</b> covers using information obtained for certain statutory purposes. And <b>s.13</b> confirms that 'the data protection legislation' means what it means in s.3 of the Data Protection Act 2018 — so this sits <b>on top of</b> ordinary data protection law, not instead of it.</p>" +
             "<p>If you audit resident support files, these are the most sensitive documents a provider holds. When an information governance lead asks how you handle that data, placing your practice against ss.10 and 11 and the DPA 2018 is the difference between sounding careful and sounding professional.</p>" +
             "<p>While in s.13, note two entries from the last lesson: <b>person having control</b> and <b>person managing</b>, both borrowed from s.263 Housing Act 2004.</p>",

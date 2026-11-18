@@ -39,7 +39,8 @@ public/            the site — this is what Cloudflare serves
   index.html
   app.js           engine: state, merge, sync client, router, views
   app.css          the visual language and all motion
-  tracks.js        seed tracks (window.SLA_SEED)
+  tracks.js        subjects (window.SLA_SUBJECTS) and the supported housing track
+  tracks/*.js      one starter track per subject, each pushed into window.SLA_SEED
   sw.js            offline shell; never caches /api/
   _headers         security and caching headers
 functions/
@@ -93,6 +94,16 @@ Anyone holding your code can read your progress. Treat it like a password.
 
 ---
 
+## Subjects
+
+Tracks belong to one or more **subjects**: Supported Housing, Compliance, Property, Cloudflare, GitHub, AI and IT to start. The Learn screen has a chip row to focus on one subject, and "next up" follows the focus. The Subjects tab shows every subject with its progress; tap one for its tracks. Add your own subject from the Add tab, then tick it when you create a track.
+
+To add a starter track for a subject, create `public/tracks/<name>.js` that calls `window.SLA_SEED.push({...})` with a `subjects` array, then add it to `index.html` and to `SHELL` in `sw.js`, and bump `VERSION`.
+
+## Reading links
+
+Every lesson can carry sources. They show in three places, all built for a phone: a **Read** button in the lesson's sticky step bar opens a bottom sheet listing every source, grouped by step, with the current step first; each step's "Now go and look" box shows its own links as large buttons; and each track page has a reading list. Links open in a new tab, so your place in the lesson stays put.
+
 ## Adding your own material
 
 - **Quick question** — question, right answer, wrong answers, and the explanation you want when you get it wrong in three months. Anything you have looked up twice is a question you should have had.
@@ -107,13 +118,13 @@ Seed tracks are copy-on-write: add anything to one and the app copies it into yo
 {
   "title": "Schedule 3 — licence conditions",
   "intro": "One line on what this lesson gives you.",
-  "link": "https://www.legislation.gov.uk/…",
-  "linkLabel": "The draft regulations",
+  "links": [{ "label": "The draft regulations", "url": "https://www.legislation.gov.uk/…", "note": "optional" }],
   "steps": [
     {
       "title": "Why this exists",
       "teach": "<p>Plain English. Explain the thing before naming it.</p>",
       "look": "The one specific thing to go and open.",
+      "links": [{ "label": "The section to read", "url": "https://…" }],
       "qs": [
         { "q": "The question.", "opts": ["Wrong", "Right", "Wrong"], "correct": 1,
           "why": "Why that is the answer, and why the tempting wrong one is wrong." }
@@ -125,7 +136,7 @@ Seed tracks are copy-on-write: add anything to one and the app copies it into yo
 }
 ```
 
-Required: `title`, `steps`, and for each step `title` and `teach`. Each question needs `q`, two or more `opts`, and a `correct` index in range. Anything invalid is rejected with the step and question number, and nothing is added.
+`links` are optional on the lesson and on each step; every `url` must start with http:// or https://. The older `link`/`linkLabel` pair still works. Required: `title`, `steps`, and for each step `title` and `teach`. Each question needs `q`, two or more `opts`, and a `correct` index in range. Anything invalid is rejected with the step and question number, and nothing is added.
 
 Put the real reasoning in `why`. That is the text you read when you get it wrong, and it does most of the teaching.
 
