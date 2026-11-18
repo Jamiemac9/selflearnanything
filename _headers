@@ -1,0 +1,28 @@
+# Cloudflare Pages headers
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+
+# App shell must revalidate so a deploy is seen immediately.
+/index.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# Code changes with each deploy; keep it short rather than immutable.
+/app.js
+  Cache-Control: public, max-age=300, must-revalidate
+/app.css
+  Cache-Control: public, max-age=300, must-revalidate
+/tracks.js
+  Cache-Control: public, max-age=300, must-revalidate
+
+/icon.svg
+  Cache-Control: public, max-age=604800
+/*.png
+  Cache-Control: public, max-age=604800

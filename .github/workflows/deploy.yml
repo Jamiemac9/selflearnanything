@@ -1,0 +1,36 @@
+name: Deploy to Cloudflare Pages
+
+# Only needed if you are NOT using Cloudflare's own Git integration.
+# A Git-connected Pages project rejects direct uploads — use one or the other.
+#
+# Requires two repository secrets:
+#   CLOUDFLARE_API_TOKEN   — My Profile > API Tokens > "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  — from any dashboard URL
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the JavaScript parses
+        run: |
+          node --check app.js
+          node --check tracks.js
+          node --check sw.js
+          node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+
+      - name: Publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=selflearnanything --branch=main
