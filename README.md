@@ -76,7 +76,7 @@ Then check the binding landed: project → **Settings** → **Bindings**. You sh
 
 Every push to `main` redeploys.
 
-**Or via GitHub Actions:** `.github/workflows/deploy.yml` deploys on push once you add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repository secrets. Use this or the Git integration, not both.
+This repo deploys through Cloudflare's Git integration. `.github/workflows/check.yml` only checks the JavaScript parses on every push; it does not deploy.
 
 ---
 

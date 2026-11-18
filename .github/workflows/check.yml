@@ -1,0 +1,21 @@
+name: Check
+
+# Cloudflare Pages deploys this repo through its own Git integration on every push to main.
+# This workflow only checks the code parses, so a broken file shows up as a red cross on GitHub.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the JavaScript parses
+        run: |
+          for f in public/*.js public/tracks/*.js functions/api/*.js; do node --check "$f"; done
+          node -e "JSON.parse(require('fs').readFileSync('public/manifest.webmanifest','utf8'))"

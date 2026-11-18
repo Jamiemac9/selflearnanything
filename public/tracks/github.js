@@ -66,25 +66,40 @@ window.SLA_SEED.push({
           }]
         },
         {
-          title: "Actions: code that runs on push",
-          links: [{ label: "deploy.yml", url: "https://github.com/Jamiemac9/selflearnanything/blob/main/.github/workflows/deploy.yml", note: "this repo's workflow" }],
-          teach: "<p><b>GitHub Actions</b> runs jobs automatically when something happens in the repo. The file <code>.github/workflows/deploy.yml</code> says: on every push to <code>main</code>, check the JavaScript parses, then deploy to Cloudflare.</p>" +
-            "<p>It needs a Cloudflare token to do that, and it reads it as <code>${{ secrets.CLOUDFLARE_API_TOKEN }}</code> — from the repo's secret store, never from the file itself.</p>" +
-            "<p>Here, you only need it if you deploy through Actions instead of Cloudflare's own Git integration. Use one or the other.</p>",
-          look: "Open deploy.yml and find the <code>on:</code> block and the line that reads the secret.",
-          qs: [{
-            q: "Where does the workflow get the Cloudflare API token from?",
-            opts: ["It is written in deploy.yml", "Repository secrets, read at run time", "Your laptop", "wrangler.toml"],
-            correct: 1,
-            why: "Secrets are stored encrypted in the repo settings and injected when the job runs. The workflow file only names them."
-          }]
+          title: "Actions: checks that run on push",
+          links: [
+            { label: "check.yml", url: "https://github.com/Jamiemac9/selflearnanything/blob/main/.github/workflows/check.yml", note: "this repo's workflow" },
+            { label: "Actions runs", url: "https://github.com/Jamiemac9/selflearnanything/actions", note: "green tick or red cross" }
+          ],
+          teach: "<p><b>GitHub Actions</b> runs jobs automatically when something happens in the repo. In this repo, <code>.github/workflows/check.yml</code> runs on every push and checks that each JavaScript file parses. A broken file shows as a red cross next to the commit.</p>" +
+            "<p>Deploying is a separate job, done by <b>Cloudflare's Git integration</b>, which shows up as its own check on each commit.</p>" +
+            "<p>A real lesson from this repo: it once had a second deploy job in Actions as well. That job needed a Cloudflare API token stored as a <b>repository secret</b>. None was set, so it failed on every push while Cloudflare deployed fine. Two systems doing one job means one of them is noise. Pick one.</p>" +
+            "<p>When a workflow does need a credential, it reads it as <code>${{ secrets.NAME }}</code> from the repo's secret store, never from the file.</p>",
+          look: "Open the Actions runs. Find a red cross and a green tick, and open one to read which step failed.",
+          qs: [
+            {
+              q: "Every push shows a red cross from a deploy workflow, but the live site updates fine. Most likely?",
+              opts: ["The site is broken",
+                     "A second deploy job is failing, often for a missing secret, while another system does the real deploy",
+                     "GitHub is down",
+                     "The commit was never pushed"],
+              correct: 1,
+              why: "Read the failed step's log before assuming the worst. Here the log said no API token was set, and Cloudflare's own check on the same commit said deploy successful."
+            },
+            {
+              q: "Where should a workflow get an API token from?",
+              opts: ["Written in the workflow file", "Repository secrets, read at run time", "Your laptop", "wrangler.toml"],
+              correct: 1,
+              why: "Secrets are stored encrypted in the repo settings and injected when the job runs. The workflow file only names them."
+            }
+          ]
         }
       ],
       recap: [
         "Git is local history; GitHub hosts a copy that services like Cloudflare deploy from.",
         "add → commit → push. Nothing leaves your machine until the push.",
         "Never commit secrets: history keeps them even after deletion. Revoke anything leaked.",
-        "Actions run on repo events; they read credentials from repository secrets."
+        "Actions run checks on repo events; credentials come from repository secrets.", "One job, one system: a duplicate deploy job just produces red crosses."
       ],
       open: "Which of your other repos is public? Is there anything in its history that should not be?"
     }
