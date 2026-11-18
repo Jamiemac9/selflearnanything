@@ -1,7 +1,7 @@
 /* Self Learn Anything — offline shell.
    HTML is network-first so a deploy is picked up straight away.
    Static assets are cache-first with a versioned cache. Bump VERSION on release. */
-var VERSION = "sla-1";
+var VERSION = "sla-2";
 var SHELL = ["./", "./index.html", "./app.css", "./app.js", "./tracks.js", "./icon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {
@@ -16,7 +16,10 @@ self.addEventListener("activate", function (e) {
 
 self.addEventListener("fetch", function (e) {
   var req = e.request;
-  if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  var url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== location.origin) return;
+  /* Never cache the sync API: a stale answer here would silently lose progress. */
+  if (url.pathname.indexOf("/api/") === 0) return;
 
   var wantsHTML = req.mode === "navigate" || (req.headers.get("accept") || "").indexOf("text/html") > -1;
   if (wantsHTML) {

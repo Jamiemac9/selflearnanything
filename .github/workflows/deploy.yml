@@ -23,14 +23,14 @@ jobs:
 
       - name: Check the JavaScript parses
         run: |
-          node --check app.js
-          node --check tracks.js
-          node --check sw.js
-          node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+          node --check public/app.js
+          node --check public/tracks.js
+          node --check public/sw.js
+          node -e "JSON.parse(require('fs').readFileSync('public/manifest.webmanifest','utf8'))"
 
       - name: Publish
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy . --project-name=selflearnanything --branch=main
+          command: pages deploy --branch=main   # output dir, functions and KV binding come from wrangler.toml
